@@ -28,10 +28,6 @@ struct Grid {
 impl Grid {
     fn point_has_adjacent_symbol(self: &Self, point: &Point) -> bool {
         let (max_width, max_height) = (self.width - 1, self.height - 1);
-        println!(
-            "x {}, y {}, max_x {}, max_y {}",
-            point.x, point.y, max_width, max_height
-        );
         match (point.x, point.y) {
             // top-left corner
             (0, 0) => {
@@ -201,7 +197,19 @@ fn part1(input: &str) -> usize {
                         token: Token::Period,
                     });
                 }
-                '0'..='9' => current_value += &c.to_string(),
+                '0'..='9' => {
+                    current_value += &c.to_string();
+                    if x == line.len() - 1 {
+                        let length = current_value.len();
+                        for n in 0..length {
+                            symbols.push(Point {
+                                x: x - (length - n),
+                                y,
+                                token: Token::Part(current_value.parse::<usize>().unwrap()),
+                            });
+                        }
+                    }
+                }
                 _ => {
                     let length = current_value.len();
                     if length > 0 {
@@ -229,7 +237,6 @@ fn part1(input: &str) -> usize {
         width: points[0].len(),
         points,
     };
-    // dbg!(grid);
     let parts: Vec<&Point> = grid
         .points
         .iter()
@@ -241,7 +248,6 @@ fn part1(input: &str) -> usize {
                     Token::Part(_value) => grid.point_has_adjacent_symbol(point),
                     _ => false,
                 })
-                .inspect(|p| println!("keeping point {:#?}", p))
                 .collect::<Vec<&Point>>();
             parts.dedup_by(|a, b| match (a.token, b.token) {
                 (Token::Part(a_value), Token::Part(b_value)) => a_value == b_value,
@@ -251,7 +257,6 @@ fn part1(input: &str) -> usize {
         })
         .flatten()
         .collect();
-    println!("deduped parts: {:#?}", parts);
 
     parts
         .iter()
