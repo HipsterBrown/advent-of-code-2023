@@ -4,267 +4,137 @@ fn main() {
     dbg!(output);
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum Token {
-    Part(usize), // (value)
-    Symbol,
-    Period,
-}
-
 #[derive(Debug)]
-struct Point {
-    x: usize,
-    y: usize,
-    token: Token,
+struct Part {
+    col_start: usize,
+    col_end: usize,
+    row: usize,
+    value: usize,
 }
 
-#[derive(Debug)]
-struct Grid {
-    width: usize,
-    height: usize,
-    points: Vec<Vec<Point>>,
-}
+impl Part {
+    fn has_adjacent_symbol(
+        self: &Self,
+        max_row: usize,
+        max_col: usize,
+        symbols: &Vec<Symbol>,
+    ) -> bool {
+        let positions = self.get_possible_positions(max_row, max_col);
+        println!("{:#?}", positions);
 
-impl Grid {
-    fn point_has_adjacent_symbol(self: &Self, point: &Point) -> bool {
-        let (max_width, max_height) = (self.width - 1, self.height - 1);
-        match (point.x, point.y) {
-            // top-left corner
-            (0, 0) => {
-                // check right, bottom, bottom-right
-                for (x, y) in [(1, 0), (1, 1), (0, 1)].iter() {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // bottom-right corner
-            (x, y) if x == max_width && y == max_height => {
-                // check left, top-left, top
-                for (x, y) in [
-                    (max_width - 1, max_height),
-                    (max_width - 1, max_height - 1),
-                    (max_width, max_height - 1),
-                ]
-                .iter()
-                {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // bottom-left corner
-            (0, max_y) if max_y == max_height => {
-                // check top, top-right, right
-                for (x, y) in [(0, max_height + 1), (1, max_height + 1), (1, max_height)].iter() {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // top-right corner
-            (max_x, 0) if max_x == max_width => {
-                // check left, bottom-left, bottom
-                for (x, y) in [(max_width - 1, 0), (max_width - 1, 1), (max_width, 1)].iter() {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // last column
-            (max_x, point_y) if max_x == max_width => {
-                // check left, bottom-left, bottom, top-left, top
-                for (x, y) in [
-                    (max_width - 1, point_y),
-                    (max_width - 1, point_y - 1),
-                    (max_width, point_y - 1),
-                    (max_width - 1, point_y + 1),
-                    (max_width, point_y + 1),
-                ]
-                .iter()
-                {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // first column
-            (0, point_y) => {
-                // check top, top-right, right, bottom-right, bottom
-                for (x, y) in [
-                    (0, point_y - 1),
-                    (1, point_y - 1),
-                    (1, point_y),
-                    (1, point_y + 1),
-                    (0, point_y + 1),
-                ]
-                .iter()
-                {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // bottom row
-            (point_x, max_y) if max_y == max_height => {
-                // check left, right, top-left, top, top-right
-                for (x, y) in [
-                    (point_x - 1, max_height),
-                    (point_x + 1, max_height),
-                    (point_x - 1, max_height - 1),
-                    (point_x, max_height - 1),
-                    (point_x + 1, max_height - 1),
-                ]
-                .iter()
-                {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // top row
-            (point_x, 0) => {
-                // check bottom, bottom-left, bottom-right, left, right
-                for (x, y) in [
-                    (point_x, 1),
-                    (point_x - 1, 1),
-                    (point_x + 1, 1),
-                    (point_x - 1, 0),
-                    (point_x + 1, 0),
-                ]
-                .iter()
-                {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
-            }
-            // in-between
-            (point_x, point_y) => {
-                // check left, top-left, top, top-right, right, bottom-right, bottom, bottom-left
-                for (x, y) in [
-                    (point_x - 1, point_y),
-                    (point_x - 1, point_y - 1),
-                    (point_x, point_y - 1),
-                    (point_x + 1, point_y - 1),
-                    (point_x + 1, point_y),
-                    (point_x + 1, point_y + 1),
-                    (point_x, point_y + 1),
-                    (point_x - 1, point_y + 1),
-                ]
-                .iter()
-                {
-                    if self.points[*y][*x].token == Token::Symbol {
-                        return true;
-                    }
-                }
-                false
+        for symbol in symbols.iter() {
+            if positions.contains(&(symbol.col, symbol.row)) {
+                return true;
             }
         }
+        false
+    }
+
+    fn get_possible_positions(self: &Self, max_row: usize, max_col: usize) -> Vec<(usize, usize)> {
+        println!("get_possible_positions");
+        let possible_positions: Vec<(isize, isize)> = vec![
+            (1, 0),
+            (1, 1),
+            (0, 1),
+            (-1, 0),
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 1),
+        ];
+        let part_positions = (self.col_start..=self.col_end)
+            .map(|col| (col as isize, self.row as isize))
+            .collect::<Vec<(isize, isize)>>();
+        println!("part positions: {:#?}", part_positions);
+        possible_positions
+            .iter()
+            .filter_map(|(col, row)| {
+                if row + (self.row as isize) > max_row as isize || row + (self.row as isize) < 0 {
+                    ()
+                }
+                if col + (self.col_start as isize) < 0
+                    || col + (self.col_end as isize) > max_col as isize
+                {
+                    ()
+                }
+                Some(
+                    part_positions
+                        .iter()
+                        .map(|(part_col, part_row)| {
+                            ((part_col + col) as usize, (part_row + row) as usize)
+                        })
+                        .collect::<Vec<(usize, usize)>>(),
+                )
+            })
+            .flatten()
+            .collect()
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Symbol {
+    col: usize,
+    row: usize,
+    value: char,
+}
+
 fn part1(input: &str) -> usize {
-    let mut points: Vec<Vec<Point>> = Vec::new();
-    for (y, line) in input.lines().filter(|l| !l.is_empty()).enumerate() {
-        let mut symbols: Vec<Point> = Vec::new();
+    let mut parts: Vec<Part> = Vec::new();
+    let mut symbols: Vec<Symbol> = Vec::new();
+    let lines = input
+        .lines()
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<&str>>();
+    let height = lines.len();
+    let width = lines[0].len();
+    for (row, line) in lines.iter().enumerate() {
         let mut current_value = String::new();
-        for (x, c) in line.char_indices() {
+        for (col, c) in line.char_indices() {
             match c {
                 '.' => {
                     let length = current_value.len();
                     if length > 0 {
-                        for n in 0..length {
-                            symbols.push(Point {
-                                x: x - (length - n),
-                                y,
-                                token: Token::Part(current_value.parse::<usize>().unwrap()),
-                            });
-                        }
+                        parts.push(Part {
+                            col_start: col - length,
+                            col_end: col - 1,
+                            row,
+                            value: (current_value.parse::<usize>().unwrap()),
+                        });
                         current_value = String::new();
                     }
-                    symbols.push(Point {
-                        x,
-                        y,
-                        token: Token::Period,
-                    });
                 }
                 '0'..='9' => {
                     current_value += &c.to_string();
-                    if x == line.len() - 1 {
+                    if col == line.len() - 1 {
                         let length = current_value.len();
-                        for n in 0..length {
-                            symbols.push(Point {
-                                x: x - (length - n),
-                                y,
-                                token: Token::Part(current_value.parse::<usize>().unwrap()),
-                            });
-                        }
+                        parts.push(Part {
+                            col_start: col - length - 1,
+                            col_end: col - 1,
+                            row,
+                            value: (current_value.parse::<usize>().unwrap()),
+                        });
                     }
                 }
                 _ => {
                     let length = current_value.len();
                     if length > 0 {
-                        for n in 0..length {
-                            symbols.push(Point {
-                                x: x - (length - n),
-                                y,
-                                token: Token::Part(current_value.parse::<usize>().unwrap()),
-                            });
-                        }
+                        parts.push(Part {
+                            col_start: col - length,
+                            col_end: col - 1,
+                            row,
+                            value: (current_value.parse::<usize>().unwrap()),
+                        });
                         current_value = String::new();
                     }
-                    symbols.push(Point {
-                        x,
-                        y,
-                        token: Token::Symbol,
-                    });
+                    symbols.push(Symbol { col, row, value: c })
                 }
             }
         }
-        points.push(symbols);
     }
-    let grid = Grid {
-        height: points.len(),
-        width: points[0].len(),
-        points,
-    };
-    let parts: Vec<&Point> = grid
-        .points
+    let valid_parts = parts
         .iter()
-        .clone()
-        .map(|row| {
-            let mut parts = row
-                .iter()
-                .filter(|point| match point.token {
-                    Token::Part(_value) => grid.point_has_adjacent_symbol(point),
-                    _ => false,
-                })
-                .collect::<Vec<&Point>>();
-            parts.dedup_by(|a, b| match (a.token, b.token) {
-                (Token::Part(a_value), Token::Part(b_value)) => a_value == b_value,
-                _ => false,
-            });
-            parts
-        })
-        .flatten()
-        .collect();
-
-    parts
-        .iter()
-        .map(|p| match p.token {
-            Token::Part(value) => value,
-            _ => 0,
-        })
-        .sum()
+        .filter(|part| part.has_adjacent_symbol(height, width, &symbols));
+    valid_parts.map(|p| p.value).sum()
 }
 
 #[cfg(test)]
